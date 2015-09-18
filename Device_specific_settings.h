@@ -21,4 +21,3 @@ const int updateIntervalInSeconds = 300;   //Set the time between uploads, 300s=
 //Maximum number of failed connections before it reboots
 #define MAX_FAILED_CONNS 3
 
-
