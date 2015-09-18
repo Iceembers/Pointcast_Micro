@@ -14,19 +14,17 @@ contact sd661@cam.ac.uk
 
 */
 
- /**************************************************************************/
+/**************************************************************************/
 // Init
 /**************************************************************************/
 
 #include <SPI.h>
 #include <Adafruit_CC3000.h>
-#include <ccspi.h>
-#include <string.h>
 #include <avr/wdt.h>
-#include <limits.h>
-      
+#include <limits.h>     //used for watchdog timer extension
+#include "Device_specific_settings.h"
     
-//Settigns for setting up the Wifi
+//Set up the CC3000 shield 
       // These are the interrupt and control pins
       #define ADAFRUIT_CC3000_IRQ   3  // MUST be an interrupt pin!
       // These can be any two pins
@@ -36,12 +34,8 @@ contact sd661@cam.ac.uk
       // On an UNO, SCK = 13, MISO = 12, and MOSI = 11
       Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
                                SPI_CLOCK_DIVIDER); // you can change this clock speed
-      
-      #define WLAN_SSID       "WiFi SSID"           // cannot be longer than 32 characters!
-      #define WLAN_PASS       "Password"
-      // Security can be WLAN_SEC_UNSEC, WLAN_SEC_WEP, WLAN_SEC_WPA or WLAN_SEC_WPA2
-      #define WLAN_SECURITY   WLAN_SEC_WPA2
       #define IDLE_TIMEOUT_MS  3000
+
 
 // Interrupt mode for Geiger counter and count
 const int interruptMode = FALLING;
@@ -74,34 +68,24 @@ enum states
 static devctrl_t ctrl;
 
   
-
-
 //Time variables
-// Sampling interval (e.g. 60,000ms = 1min)
-const int updateIntervalInMinutes = 5;    //Set the time between uploads
 unsigned long updateIntervalInMillis;     
 long lastConnectionTime = 0;              // Variable to track time since last connected to gateway
 unsigned long elapsedTime(unsigned long startTime);   //function definition for elapsed time function
 
 
-//Maximum number of failed connections before it reboots
-#define MAX_FAILED_CONNS 3
-
 //Initiate Data sending variables
 #define SENT_SZ 150  //Max size of JSON buffer -the CC3000 can't actually handle more than about 100 chars
-char longitude[16];
-char latitude[16];
-char user_id[7];
 char CPM_string[15];
-char alt[15];
 char json_buf[200];
-char lenstr[10];
 uint32_t ip=0; 
 
 //the timeout for aquiring DHCP
 int DHCP_count; 
 
-      
+/**************************************************************************/
+// Setup()
+/**************************************************************************/
 void setup() {
        
         Serial.begin(115200);                             
@@ -133,24 +117,19 @@ void setup() {
         attachInterrupt(digitalPinToInterrupt(2), onPulse, interruptMode);                // comment out to disable the GM Tube
 
         // Calculate update time in ms,
-        updateIntervalInMillis = updateIntervalInMinutes * 60000;              
+        updateIntervalInMillis = updateIntervalInSeconds * 1000;              
                 
         wdt_reset();
       
 }
 
-//**********************************************
-//SEND DATA TO SERVER***************************
-//**********************************************
-
-
+/**************************************************************************/
+// Send data to server
+/**************************************************************************/
 
 void SendDataToServer(float CPM){
 
 //set up the json
-       strcpy(longitude , "134.1441"); //140.364314
-       strcpy(latitude , "10.0000"); //37.403075
-       strcpy(user_id , "100062");
        dtostrf(CPM, 0, 0, CPM_string);
                
        memset(json_buf, 0, SENT_SZ);
@@ -245,9 +224,9 @@ void SendDataToServer(float CPM){
 }
 
 
-//********************************************************
-//****************************LOOP **************
-//********************************************************
+/**************************************************************************/
+// loop()
+/**************************************************************************/
 
 
 
@@ -268,25 +247,16 @@ void loop() {
 
          
       
-      float CPM = (float)counts_per_sample / (float)updateIntervalInMinutes;
+      float CPM = (float)counts_per_sample / ((float)updateIntervalInSeconds/60.0);
       
       //Serial.print("\t\tcount: "); Serial.println(counts_per_sample);
       
       counts_per_sample = 0;
-    
-      SendDataToServer(CPM);
-      
       Serial.print("\t\tCPM = "); Serial.println(CPM);  //Sadd
-      
-      
-       
-      
-      
-      
-
+      SendDataToServer(CPM);
 }
 
-/******************************************************************************************************
+/******************************************************************************************************/
 //set up the watchdog timer with a 32s delay (long delay needed for time it takes to 
 /*****************************************************************************************************/
 
